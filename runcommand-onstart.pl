@@ -65,6 +65,7 @@ if ( ! -f $gamelist ) {
 }
 
 $rom = `realpath "$rom"`;
+$rom =~ s/\n//g;
 
 my $found = 0;
 my $xml = XML::LibXML->load_xml(location => $gamelist);
@@ -73,6 +74,7 @@ foreach my $game ($xml->findnodes('/gameList/game')) {
     next if not $path;
     if (not $path =~ /\A\//) {
         $path = `realpath "$sysdir/$path"`;
+        $path =~ s/\n//g;
     }
 
     next if $path ne $rom;
@@ -88,6 +90,7 @@ foreach my $game ($xml->findnodes('/gameList/game')) {
     if ($img) {
         if (not $img =~ /\A\//) {
             $img = `realpath "$sysdir/$img"`;
+            $img =~ s/\n//g;
         }
     }
 
