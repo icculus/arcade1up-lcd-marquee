@@ -14,7 +14,7 @@ my $debug = 0;
 
 sub quit {
     my $rc = shift;
-    sleep(5) if $debug;
+    sleep(15) if $debug;
     exit($rc);
 }
 
