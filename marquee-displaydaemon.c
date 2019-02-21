@@ -162,7 +162,7 @@ static SDL_bool initialize(const int argc, char **argv)
     }
 
     const char *driver = SDL_GetCurrentVideoDriver();
-    if (SDL_strcmp(driver, "rpi") != 0) {
+    if (SDL_strcasecmp(driver, "rpi") != 0) {
         fprintf(stderr, "\n\n"
             "WARNING: %s:\n"
             "WARNING: you aren't using SDL's \"rpi\" video target.\n"
