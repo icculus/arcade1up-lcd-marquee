@@ -6,5 +6,7 @@
 #
 #  This file written by Ryan C. Gordon.
 
-exec "`dirname $0`"/runcommand-onstart.pl "$@"
+exec "`dirname $0`"/runcommand-onstart-marquee-lcd.pl "$@" &
+
+
 
