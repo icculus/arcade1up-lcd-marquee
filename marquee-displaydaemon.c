@@ -247,6 +247,8 @@ static SDL_bool iterate(void)
                  (e.window.event == SDL_WINDOWEVENT_EXPOSED) ) {
                 redraw = SDL_TRUE;
             }
+        /* you aren't going to get a DROPFILE event on the Pi, but this is
+           useful for testing when building on a desktop system. */
         } else if (e.type == SDL_DROPFILE) {
             SDL_free(newimage);
             newimage = e.drop.file;
