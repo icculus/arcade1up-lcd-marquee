@@ -1,4 +1,4 @@
-#/usr/bin/perl -w
+#!/usr/bin/perl -w
 
 # arcade1up-lcd-marquee; control an LCD in a Arcade1Up marquee.
 #
@@ -12,18 +12,21 @@ use warnings;
 use strict;
 use XML::LibXML;
 
-my $debug = 1;
+my $debug = 0;
 
 sub usage {
     print STDERR "USAGE: $0 <SYSTEM> <EMULATOR> <ROM> <COMMAND>\n";
     exit(1);
 }
 
-my $system, $emulator, $rom, $cmd;
+my $system;
+my $emulator;
+my $rom;
+my $cmd;
 my $cmdline_ok = 0;
 foreach (@ARGV) {
     $debug = 1, next if ($_ eq '--debug');
-    $system = $_, next if (not defined $host);
+    $system = $_, next if (not defined $system);
     $emulator = $_, next if (not defined $emulator);
     $rom  = $_, next if (not defined $rom);
     $cmd = $_, $cmdline_ok = 1, next if (not defined $cmd);
@@ -37,8 +40,9 @@ print("Starting up!\n") if $debug;
 if ($debug) {
     print("system: '$system'\n");
     print("emulator: '$emulator'\n");
-    print("rom: '$rom'");
+    print("rom: '$rom'\n");
     print("command: '$cmd'\n");
+    print("\n");
 }
 
 
@@ -56,7 +60,7 @@ exit(0) if ( ! -f $gamelist );  # nothing to do...
 $rom = `realpath "$rom"`;
 
 my $xml = XML::LibXML->load_xml(location => $gamelist);
-foreach my $game ($dom->findnodes('/gameList/game')) {
+foreach my $game ($xml->findnodes('/gameList/game')) {
     my $path = $game->findvalue('./path');
     next if not $path;
     if (not $path =~ /\A\//) {
@@ -82,6 +86,7 @@ foreach my $game ($dom->findnodes('/gameList/game')) {
         # !!! FIXME: maybe a system image (like an Apple for basilisk?) if still not found?
         print("Found game, but no usable image for it.  :(\n") if $debug;
     } else {
+        $img =~ s/\n//g;
         print("Going with image '$img' for the marquee!\n") if $debug;
         system("/home/pi/projects/arcade1up-lcd-marquee/marquee-showimage $img");
     }
@@ -90,6 +95,7 @@ foreach my $game ($dom->findnodes('/gameList/game')) {
 }
 
 print("All done!\n") if $debug;
+sleep(5) if $debug;
 
 exit(0);
 
