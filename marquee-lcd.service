@@ -1,0 +1,12 @@
+[Unit]
+Description=Icculus's Marquee LCD
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/home/pi/marquee-displaydaemon --fadems 1000 --startimage /home/pi/stickers-neo-geo-system.jpg
+TimeoutStopSec=3
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target
