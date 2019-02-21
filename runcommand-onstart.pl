@@ -101,6 +101,7 @@ foreach my $game ($xml->findnodes('/gameList/game')) {
         $img =~ s/\n//g;
         print("Going with image '$img' for the marquee!\n") if $debug;
 
+        $img =~ s/\'/'\\''/g;
         my $cmd = "/home/pi/projects/arcade1up-lcd-marquee/marquee-showimage '$img'";
         print("calling system(\"$cmd\")...\n") if $debug;
         system($cmd);
