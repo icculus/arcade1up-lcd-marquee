@@ -10,7 +10,7 @@ use warnings;
 use strict;
 use XML::LibXML;
 
-my $debug = 1;
+my $debug = 0;
 
 sub quit {
     my $rc = shift;
