@@ -6,6 +6,6 @@
 #
 #  This file written by Ryan C. Gordon.
 
-FULLPATH=`realpath $1`
+FULLPATH="`realpath \"$1\"`"
 exec dbus-send --system --type=signal / org.icculus.Arcade1UpMarquee.ShowImage string:"$FULLPATH"
 
