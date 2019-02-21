@@ -163,23 +163,21 @@ static SDL_bool initialize(const int argc, char **argv)
 
     const char *driver = SDL_GetCurrentVideoDriver();
     if (SDL_strcasecmp(driver, "rpi") != 0) {
-        fprintf(stderr, "\n\n"
-            "WARNING: %s:\n"
+        fprintf(stderr,
             "WARNING: you aren't using SDL's \"rpi\" video target.\n"
             "WARNING:  (you are using \"%s\" instead.)\n"
-            "WARNING: This is probably _not_ what you wanted to do!\n\n\n",
-                argv[0], driver);
+            "WARNING: This is probably _not_ what you wanted to do!\n",
+                driver);
     }
 
     const int numdpy = SDL_GetNumVideoDisplays();
     if (numdpy <= displayidx) {
         const int replacement = numdpy - 1;
-        fprintf(stderr, "\n\n"
-            "WARNING: %s:\n"
+        fprintf(stderr,
             "WARNING: We want display index %d, but there are only %d displays.\n"
             "WARNING: Choosing index %d instead.\n"
-            "WARNING: This is probably _not_ what you wanted to do!\n\n\n",
-                argv[0], displayidx, numdpy, replacement);
+            "WARNING: This is probably _not_ what you wanted to do!\n",
+                displayidx, numdpy, replacement);
             displayidx = replacement;
     }
 
@@ -219,6 +217,7 @@ static SDL_bool initialize(const int argc, char **argv)
     SDL_RenderPresent(renderer);
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
+    /* on some systems, your window doesn't show up until the event queue gets pumped. */
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
         if (e.type == SDL_QUIT)
@@ -266,7 +265,6 @@ static SDL_bool iterate(void)
     
     return SDL_TRUE;
 }
-
 
 int main(int argc, char **argv)
 {
