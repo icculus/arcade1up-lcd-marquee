@@ -12,8 +12,7 @@
 
 //#define STBI_SSE2 1
 
-#if (defined(__ARM_ARCH) && (__ARM_ARCH >= 8))  /* ARMv8 always has NEON. */
-#error sdfsdf
+#if defined(__ARM_NEON) || (defined(__ARM_ARCH) && (__ARM_ARCH >= 8))  /* ARMv8 always has NEON. */
 #define STBI_NEON 1
 #endif
 
