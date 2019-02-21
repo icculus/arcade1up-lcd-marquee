@@ -207,7 +207,7 @@ static SDL_bool initialize(const int argc, char **argv)
         }
     }
 
-    #if 1
+    #if 0
     SDL_RendererInfo info;
     SDL_zero(info);
     SDL_GetRendererInfo(renderer, &info);
