@@ -9,6 +9,11 @@
 #include <stdio.h>
 #include "SDL.h"
 
+#define USE_DBUS 1
+
+#if USE_DBUS
+#include <dbus/dbus.h>
+#endif
 
 //#define STBI_SSE2 1
 
@@ -31,6 +36,10 @@ static int texturew = 0;
 static int textureh = 0;
 static Uint32 fadems = 500;
 
+#if USE_DBUS
+static DBusConnection *dbus = NULL;
+#endif
+
 static void redraw_window(void)
 {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -49,6 +58,8 @@ static void set_new_image(const char *fname)
     SDL_Texture *newtex = NULL;
     int w = 0;
     int h = 0;
+
+    printf("Setting new image \"%s\"\n", fname);
 
     if (fname) {
         int n;
@@ -109,6 +120,13 @@ static void set_new_image(const char *fname)
 
 static void deinitialize(void)
 {
+    #if USE_DBUS
+    if (dbus) {
+        dbus_connection_unref(dbus);
+        dbus = NULL;
+    }
+    #endif
+
     if (texture) {
         SDL_DestroyTexture(texture);
         texture = NULL;
@@ -227,6 +245,42 @@ static SDL_bool initialize(const int argc, char **argv)
 
     set_new_image(initial_image);
 
+    // if d-bus fails, we carry on, with at least a default image showing.
+    #if USE_DBUS
+    DBusError err;
+    dbus_error_init(&err);
+    dbus = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
+    if (dbus_error_is_set(&err)) {
+        fprintf(stderr, "ERROR: Can't connect to system D-Bus: %s\n", err.message);
+        dbus_error_free(&err);
+        dbus = NULL;
+    } else if (dbus == NULL) {
+        fprintf(stderr, "ERROR: Can't connect to system D-Bus\n");
+    } else {
+        const int rc = dbus_bus_request_name(dbus, "org.icculus.Arcade1UpMarquee", DBUS_NAME_FLAG_REPLACE_EXISTING, &err);
+        if (dbus_error_is_set(&err)) {
+            fprintf(stderr, "ERROR: Couldn't acquire D-Bus service name: %s\n", err.message);
+            dbus_error_free(&err);
+            dbus_connection_unref(dbus);
+            dbus = NULL;
+        } else if (rc != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER) {
+            fprintf(stderr, "ERROR: Not the primary owner of the D-Bus service name (%d)\n", rc);
+            dbus_connection_unref(dbus);
+            dbus = NULL;
+        }
+
+        if (dbus) {
+            dbus_bus_add_match(dbus, "type='signal',interface='org.icculus.Arcade1UpMarquee'", &err);
+            dbus_connection_flush(dbus);
+            if (dbus_error_is_set(&err)) {
+                fprintf(stderr, "ERROR: Can't match on D-Bus interface name (%d)\n", rc);
+                dbus_connection_unref(dbus);
+                dbus = NULL;
+            }
+        }
+    }
+    #endif
+
     return SDL_TRUE;
 }
 
@@ -240,7 +294,7 @@ static SDL_bool iterate(void)
     while (SDL_PollEvent(&e)) {
         saw_event = SDL_TRUE;
         if (e.type == SDL_QUIT) {
-            fprintf(stderr, "Got SDL_QUIT event, quitting now...\n");
+            printf("Got SDL_QUIT event, quitting now...\n");
             return SDL_FALSE;
         } else if (e.type == SDL_WINDOWEVENT) {
             if ( (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) ||
@@ -253,6 +307,28 @@ static SDL_bool iterate(void)
         }
     }
 
+    #if USE_DBUS
+    if (dbus) {
+        dbus_connection_read_write(dbus, 0);
+        DBusMessage *msg;
+        while ((msg = dbus_connection_pop_message(dbus)) != NULL) {
+            if (dbus_message_is_signal(msg, "org.icculus.Arcade1UpMarquee", "ShowImage")) {
+                saw_event = SDL_TRUE;
+                DBusMessageIter args;
+                if ( dbus_message_iter_init(msg, &args) &&
+                     (dbus_message_iter_get_arg_type(&args) == DBUS_TYPE_STRING) ) {
+                     char *param = NULL;
+                     dbus_message_iter_get_basic(&args, &param);
+                     printf("Got D-Bus request to show image \"%s\"\n", param);
+                     SDL_free(newimage);
+                     newimage = SDL_strdup(param);
+                }
+            }
+            dbus_message_unref(msg);
+        }
+    }
+    #endif
+
     if (!saw_event) {
         SDL_Delay(100);
     } else if (newimage) {
@@ -261,7 +337,7 @@ static SDL_bool iterate(void)
     } else if (redraw) {
         redraw_window();
     }
-    
+
     return SDL_TRUE;
 }
 

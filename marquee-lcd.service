@@ -3,10 +3,12 @@ Description=Icculus's Marquee LCD
 After=local-fs.target
 
 [Service]
-Type=simple
+Type=dbus
 ExecStart=/home/pi/marquee-displaydaemon --fadems 1000 --startimage /home/pi/stickers-neo-geo-system.jpg
 TimeoutStopSec=3
 KillSignal=SIGINT
+BusName=org.icculus.Arcade1UpMarquee
 
 [Install]
 WantedBy=multi-user.target
+
