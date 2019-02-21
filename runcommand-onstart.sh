@@ -12,11 +12,17 @@ use warnings;
 use strict;
 use XML::LibXML;
 
-my $debug = 0;
+my $debug = 1;
+
+sub quit {
+    my $rc = shift;
+    sleep(5) if $debug;
+    exit($rc);
+}
 
 sub usage {
     print STDERR "USAGE: $0 <SYSTEM> <EMULATOR> <ROM> <COMMAND>\n";
-    exit(1);
+    quit(1);
 }
 
 my $system;
@@ -55,7 +61,10 @@ if ($debug) {
 my $sysdir = "/home/pi/RetroPie/roms/$system";
 my $gamelist = "$sysdir/gamelist.xml";
 
-exit(0) if ( ! -f $gamelist );  # nothing to do...
+if ( ! -f $gamelist ) {
+    print("There's no gamelist.xml; nothing to do...\n") if $debug;
+    quit(0);
+}
 
 $rom = `realpath "$rom"`;
 
@@ -95,9 +104,8 @@ foreach my $game ($xml->findnodes('/gameList/game')) {
 }
 
 print("All done!\n") if $debug;
-sleep(5) if $debug;
 
-exit(0);
+quit(0);
 
 # end of runcommand_onstart.sh ...
 
