@@ -66,6 +66,7 @@ if ( ! -f $gamelist ) {
 
 $rom = `realpath "$rom"`;
 
+my $found = 0;
 my $xml = XML::LibXML->load_xml(location => $gamelist);
 foreach my $game ($xml->findnodes('/gameList/game')) {
     my $path = $game->findvalue('./path');
@@ -79,6 +80,7 @@ foreach my $game ($xml->findnodes('/gameList/game')) {
     my $name = $game->findvalue('./name');
     $name = '[title unknown]' if not $name;
     print("Found it! It appears to be \"$name\"\n") if $debug;
+    $found = 1;
 
     my $img = $game->findvalue('./marquee');
     $img = $game->findvalue('./image') if not $img;
@@ -104,7 +106,7 @@ foreach my $game ($xml->findnodes('/gameList/game')) {
     last;
 }
 
-print("All done!\n") if $debug;
+print($found ? "All done!\n" : "Uhoh, didn't find the game!\n") if $debug;
 
 quit(0);
 
