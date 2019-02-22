@@ -9,7 +9,11 @@
 #include <stdio.h>
 #include "SDL.h"
 
+#ifdef __linux__
 #define USE_DBUS 1
+#else
+#define USE_DBUS 0
+#endif
 
 #if USE_DBUS
 #include <dbus/dbus.h>
