@@ -33,6 +33,12 @@
 #define STBI_FREE(x) SDL_free(x)
 #include "stb_image.h"
 
+#define NANOSVG_IMPLEMENTATION
+#include "nanosvg.h"
+#define NANOSVGRAST_IMPLEMENTATION
+#include "nanosvgrast.h"
+
+
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
 static SDL_Texture *texture = NULL;
@@ -66,20 +72,53 @@ static void set_new_image(const char *fname)
     printf("Setting new image \"%s\"\n", fname);
 
     if (fname) {
-        int n;
-        stbi_uc *img = stbi_load(fname, &w, &h, &n, 4);
-        if (!img) {
-            fprintf(stderr, "WARNING: couldn't load image \"%s\"\n", fname);
-        } else {
-            newtex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888,
-                                       SDL_TEXTUREACCESS_STATIC, w, h);
-            if (!newtex) {
-                fprintf(stderr, "WARNING: couldn't create texture for \"%s\"\n", fname);
+        const char *ext = SDL_strrchr(fname, '.');
+        if (ext && (SDL_strcasecmp(ext, ".svg") == 0)) {
+            NSVGimage *image = image = nsvgParseFromFile(fname, "px", 96.0f);
+            if (!image) {
+                fprintf(stderr, "WARNING: couldn't load SVG image \"%s\"\n", fname);
             } else {
-                SDL_UpdateTexture(newtex, NULL, img, w * 4);
-                SDL_SetTextureBlendMode(newtex, SDL_BLENDMODE_BLEND);
+                NSVGrasterizer *rast = nsvgCreateRasterizer();
+                if (!rast) {
+                    fprintf(stderr, "WARNING: couldn't create SVG rasterizer for \"%s\"\n", fname);
+                } else {
+                    const int w = (int) image->width;
+                    const int h = (int) image->height;
+                    unsigned char *img = SDL_malloc(w * h * 4);
+                    if (!img) {
+                        fprintf(stderr, "WARNING: out of memory for \"%s\"\n", fname);
+                    } else {
+                        nsvgRasterize(rast, image, 0, 0, 1, img, w, h, w * 4);
+                        newtex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888,
+                                                   SDL_TEXTUREACCESS_STATIC, w, h);
+                        if (!newtex) {
+                            fprintf(stderr, "WARNING: couldn't create texture for \"%s\"\n", fname);
+                        } else {
+                            SDL_UpdateTexture(newtex, NULL, img, w * 4);
+                            SDL_SetTextureBlendMode(newtex, SDL_BLENDMODE_BLEND);
+                        }
+                        SDL_free(img);
+                    }
+                    nsvgDeleteRasterizer(rast);
+                }
+	            nsvgDelete(image);
             }
-            stbi_image_free(img);
+        } else {
+            int n;
+            stbi_uc *img = stbi_load(fname, &w, &h, &n, 4);
+            if (!img) {
+                fprintf(stderr, "WARNING: couldn't load image \"%s\"\n", fname);
+            } else {
+                newtex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888,
+                                           SDL_TEXTUREACCESS_STATIC, w, h);
+                if (!newtex) {
+                    fprintf(stderr, "WARNING: couldn't create texture for \"%s\"\n", fname);
+                } else {
+                    SDL_UpdateTexture(newtex, NULL, img, w * 4);
+                    SDL_SetTextureBlendMode(newtex, SDL_BLENDMODE_BLEND);
+                }
+                stbi_image_free(img);
+            }
         }
     }
 
