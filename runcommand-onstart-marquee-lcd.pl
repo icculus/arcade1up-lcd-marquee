@@ -12,6 +12,13 @@ use XML::LibXML;
 
 my $debug = 0;
 
+sub showimage {
+    my $img = shift;
+    my $cmd = "/home/pi/projects/arcade1up-lcd-marquee/marquee-showimage '$img'";
+    print("calling system(\"$cmd\")...\n") if $debug;
+    system($cmd);
+}
+
 sub quit {
     my $rc = shift;
     sleep(15) if $debug;
@@ -59,8 +66,12 @@ if ($debug) {
 my $sysdir = "/home/pi/RetroPie/roms/$system";
 my $gamelist = "$sysdir/gamelist.xml";
 
+my $systemimg = "/etc/emulationstation/themes/carbon/$system/art/controller.svg";
+print("system image is '$systemimg'\n") if $debug;
+
 if ( ! -f $gamelist ) {
     print("There's no gamelist.xml; nothing to do...\n") if $debug;
+    showimage($systemimg);
     quit(0);
 }
 
@@ -95,16 +106,16 @@ foreach my $game ($xml->findnodes('/gameList/game')) {
     }
 
     if (not $img) {
-        # !!! FIXME: maybe a system image (like an Apple for basilisk?) if still not found?
         print("Found game, but no usable image for it.  :(\n") if $debug;
-    } else {
+        $img = $systemimg;
+    }
+
+    if ($img) {
         $img =~ s/\n//g;
         print("Going with image '$img' for the marquee!\n") if $debug;
 
         $img =~ s/\'/'\\''/g;
-        my $cmd = "/home/pi/projects/arcade1up-lcd-marquee/marquee-showimage '$img'";
-        print("calling system(\"$cmd\")...\n") if $debug;
-        system($cmd);
+        showimage($img);
     }
 
     last;
