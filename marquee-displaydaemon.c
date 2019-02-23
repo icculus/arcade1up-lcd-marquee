@@ -223,7 +223,8 @@ static SDL_bool initialize(const int argc, char **argv)
     }
 
     const char *driver = SDL_GetCurrentVideoDriver();
-    if (SDL_strcasecmp(driver, "rpi") != 0) {
+    const SDL_bool isRpi = (SDL_strcasecmp(driver, "rpi") == 0);
+    if (!isRpi) {
         fprintf(stderr,
             "WARNING: you aren't using SDL's \"rpi\" video target.\n"
             "WARNING:  (you are using \"%s\" instead.)\n"
@@ -233,13 +234,21 @@ static SDL_bool initialize(const int argc, char **argv)
 
     const int numdpy = SDL_GetNumVideoDisplays();
     if (numdpy <= displayidx) {
-        const int replacement = numdpy - 1;
-        fprintf(stderr,
-            "WARNING: We want display index %d, but there are only %d displays.\n"
-            "WARNING: Choosing index %d instead.\n"
-            "WARNING: This is probably _not_ what you wanted to do!\n",
-                displayidx, numdpy, replacement);
-            displayidx = replacement;
+        if (isRpi) {
+            fprintf(stderr,
+                "ERROR: We want display index %d, but there are only %d displays.\n"
+                "ERROR: So as not to hijack the wrong display, we are aborting now.\n",
+                    displayidx, numdpy);
+            return SDL_FALSE;
+        } else {
+            const int replacement = numdpy - 1;
+            fprintf(stderr,
+                "WARNING: We want display index %d, but there are only %d displays.\n"
+                "WARNING: Choosing index %d instead.\n"
+                "WARNING: This is probably _not_ what you wanted to do!\n",
+                    displayidx, numdpy, replacement);
+                displayidx = replacement;
+        }
     }
 
     window = SDL_CreateWindow("Arcade1Up LCD Marquee",
