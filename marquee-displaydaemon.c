@@ -11,13 +11,20 @@
 
 #ifdef __linux__
 #define USE_DBUS 1
+#define USE_LIBEVDEV 1
 #else
 #define USE_DBUS 0
+#define USE_LIBEVDEV 0
 #endif
 
 #if USE_DBUS
 #include <dbus/dbus.h>
 #endif
+
+#if USE_LIBEVDEV
+#include <libevdev/libevdev-uinput.h>
+#endif
+
 
 //#define STBI_SSE2 1
 
@@ -44,11 +51,19 @@ static SDL_Renderer *renderer = NULL;
 static SDL_Texture *texture = NULL;
 static int texturew = 0;
 static int textureh = 0;
+static int screenw = 0;
+static int screenh = 0;
 static Uint32 fadems = 500;
 
 #if USE_DBUS
 static DBusConnection *dbus = NULL;
 #endif
+
+#if USE_LIBEVDEV
+static struct libevdev *evdev = NULL;
+static struct libevdev_uinput *uidev = NULL;
+#endif
+
 
 static void redraw_window(void)
 {
@@ -60,6 +75,7 @@ static void redraw_window(void)
         SDL_SetTextureAlphaMod(texture, 255);
         SDL_RenderCopy(renderer, texture, NULL, NULL);
     }
+    SDL_RenderSetLogicalSize(renderer, screenw, screenh);
     SDL_RenderPresent(renderer);
 }
 
@@ -170,6 +186,18 @@ static void deinitialize(void)
     }
     #endif
 
+    #if USE_LIBEVDEV
+    if (uidev) {
+        libevdev_uinput_destroy(uidev);
+        uidev = NULL;
+    }
+
+    if (evdev) {
+        libevdev_free(evdev);
+        evdev = NULL;
+    }
+    #endif
+
     if (texture) {
         SDL_DestroyTexture(texture);
         texture = NULL;
@@ -260,6 +288,8 @@ static SDL_bool initialize(const int argc, char **argv)
         return SDL_FALSE;
     }
 
+    SDL_GetWindowSize(window, &screenw, &screenh);
+
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!renderer) {
         fprintf(stderr, "WARNING! SDL_CreateRenderer(accel|vsync) failed: %s\n", SDL_GetError());
@@ -332,11 +362,36 @@ static SDL_bool initialize(const int argc, char **argv)
     }
     #endif
 
+    #if USE_LIBEVDEV
+    evdev = libevdev_new();
+    libevdev_set_name(evdev, "Icculus's LCD Marquee Mouse");
+    libevdev_enable_event_type(evdev, EV_REL);
+    libevdev_enable_event_code(evdev, EV_REL, REL_X, NULL);
+    libevdev_enable_event_code(evdev, EV_REL, REL_Y, NULL);
+    libevdev_enable_event_type(evdev, EV_KEY);
+    libevdev_enable_event_code(evdev, EV_KEY, BTN_LEFT, NULL);
+    //libevdev_enable_event_code(evdev, EV_KEY, BTN_MIDDLE, NULL);
+    //libevdev_enable_event_code(evdev, EV_KEY, BTN_RIGHT, NULL);
+    const int rc = libevdev_uinput_create_from_device(evdev,
+                                         LIBEVDEV_UINPUT_OPEN_MANAGED,
+                                         &uidev);
+    if (rc != 0) {
+        fprintf(stderr, "WARNING: Couldn't set up uinput; no mouse emulation for you! (rc=%d)\n", rc);
+        libevdev_free(evdev);
+        evdev = NULL;
+    }
+    #endif
+
     return SDL_TRUE;
 }
 
 static SDL_bool iterate(void)
 {
+    static int fingers_down = 0;
+    static SDL_bool motion_finger_down = SDL_FALSE;
+    static SDL_FingerID motion_finger = 0;
+    static SDL_bool button_finger_down = SDL_FALSE;
+    static SDL_FingerID button_finger = 0;
     SDL_bool redraw = SDL_FALSE;
     SDL_bool saw_event = SDL_FALSE;
     char *newimage = NULL;
@@ -344,19 +399,91 @@ static SDL_bool iterate(void)
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
         saw_event = SDL_TRUE;
-        if (e.type == SDL_QUIT) {
-            printf("Got SDL_QUIT event, quitting now...\n");
-            return SDL_FALSE;
-        } else if (e.type == SDL_WINDOWEVENT) {
-            if ( (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) ||
-                 (e.window.event == SDL_WINDOWEVENT_EXPOSED) ) {
-                redraw = SDL_TRUE;
-            }
-        /* you aren't going to get a DROPFILE event on the Pi, but this is
-           useful for testing when building on a desktop system. */
-        } else if (e.type == SDL_DROPFILE) {
-            SDL_free(newimage);
-            newimage = e.drop.file;
+        switch (e.type) {
+            case SDL_FINGERDOWN:
+                fingers_down++;
+                //printf("FINGER DOWN! We now have %d fingers\n", fingers_down);
+                if (!motion_finger_down) {
+                    //printf("This is the motion finger.\n");
+                    motion_finger = e.tfinger.fingerId;
+                    motion_finger_down = SDL_TRUE;
+                } else if (!button_finger_down) {
+                    //printf("This is the button finger.\n");
+                    button_finger = e.tfinger.fingerId;
+                    button_finger_down = SDL_TRUE;
+                    #if USE_LIBEVDEV
+                    if (uidev) {
+                        libevdev_uinput_write_event(uidev, EV_KEY, BTN_LEFT, 1);
+                        libevdev_uinput_write_event(uidev, EV_SYN, SYN_REPORT, 0);
+                    }
+                    #endif
+                }
+                break;
+
+            case SDL_FINGERUP:
+                fingers_down--;
+                //printf("FINGER UP! We now have %d fingers\n", fingers_down);
+                if (motion_finger_down && (e.tfinger.fingerId == motion_finger)) {
+                    //printf("This is the motion finger.\n");
+                    motion_finger_down = SDL_FALSE;
+                    motion_finger = 0;
+                } else if (button_finger_down && (e.tfinger.fingerId == button_finger)) {
+                    //printf("This is the button finger.\n");
+                    button_finger_down = SDL_FALSE;
+                    button_finger = 0;
+                    #if USE_LIBEVDEV
+                    if (uidev) {
+                        libevdev_uinput_write_event(uidev, EV_KEY, BTN_LEFT, 0);
+                        libevdev_uinput_write_event(uidev, EV_SYN, SYN_REPORT, 0);
+                    }
+                    #endif
+                }
+                break;
+
+            case SDL_FINGERMOTION:
+                if (motion_finger_down) {
+                    #if USE_LIBEVDEV
+                    if (uidev) {
+                        SDL_bool hasdata = SDL_FALSE;
+                        if (e.tfinger.dx != 0.0f) {
+                            hasdata = SDL_TRUE;
+                            const int val = (int) (((float) screenw) * e.tfinger.dx);
+                            //printf("X FINGERMOTION: %d\n", val);
+                            libevdev_uinput_write_event(uidev, EV_REL, REL_X, val);
+                        }
+                        if (e.tfinger.dy != 0.0f) {
+                            hasdata = SDL_TRUE;
+                            const int val = (int) (((float) screenh) * e.tfinger.dy);
+                            //printf("Y FINGERMOTION: %d\n", val);
+                            libevdev_uinput_write_event(uidev, EV_REL, REL_Y, val);
+                        }
+                        if (hasdata) {
+                            libevdev_uinput_write_event(uidev, EV_SYN, SYN_REPORT, 0);
+                        }
+                    }
+                    #endif
+                }
+                break;
+
+            case SDL_QUIT:
+                printf("Got SDL_QUIT event, quitting now...\n");
+                return SDL_FALSE;
+
+            case SDL_WINDOWEVENT:
+                if ( (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) ||
+                     (e.window.event == SDL_WINDOWEVENT_EXPOSED) ) {
+                    redraw = SDL_TRUE;
+                }
+                break;
+
+            case SDL_DROPFILE:
+                /* you aren't going to get a DROPFILE event on the Pi, but this
+                   is useful for testing when building on a desktop system. */
+                SDL_free(newimage);
+                newimage = e.drop.file;
+                break;
+
+            default: break;
         }
     }
 
@@ -382,7 +509,7 @@ static SDL_bool iterate(void)
     }
     #endif
 
-    if (!saw_event) {
+    if (!saw_event && !fingers_down) {
         SDL_Delay(100);
     } else if (newimage) {
         set_new_image(newimage);
