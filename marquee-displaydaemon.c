@@ -53,7 +53,6 @@ static int texturew = 0;
 static int textureh = 0;
 static int screenw = 0;
 static int screenh = 0;
-static int keyboardh = 0;
 static Uint32 fadems = 500;
 
 #if USE_DBUS
@@ -87,6 +86,8 @@ typedef struct
 } keypress;
 static SDL_bool keyboard_slide_cooldown = SDL_FALSE;
 static float keyboard_slide_percent = 0.0f;
+static int keyboardw = 0;
+static int keyboardh = 0;
 static SDL_Texture *keyboard_texture = NULL;
 static virtkey keyinfo[64];
 static keypress pressed_keys[10];
@@ -130,13 +131,9 @@ static void handle_fingerup_mouse(const SDL_TouchFingerEvent *e);
 static void handle_fingermotion_mouse(const SDL_TouchFingerEvent *e);
 
 
-static void set_new_image(const char *fname)
+static SDL_Texture *load_image(const char *fname, int *_w, int *_h)
 {
     SDL_Texture *newtex = NULL;
-    int w = 0;
-    int h = 0;
-
-    printf("Setting new image \"%s\"\n", fname);
 
     if (fname) {
         const char *ext = SDL_strrchr(fname, '.');
@@ -151,6 +148,8 @@ static void set_new_image(const char *fname)
                 } else {
                     const int w = (int) image->width;
                     const int h = (int) image->height;
+                    *_w = w;
+                    *_h = h;
                     unsigned char *img = SDL_malloc(w * h * 4);
                     if (!img) {
                         fprintf(stderr, "WARNING: out of memory for \"%s\"\n", fname);
@@ -172,23 +171,34 @@ static void set_new_image(const char *fname)
             }
         } else {
             int n;
-            stbi_uc *img = stbi_load(fname, &w, &h, &n, 4);
+            stbi_uc *img = stbi_load(fname, _w, _h, &n, 4);
             if (!img) {
                 fprintf(stderr, "WARNING: couldn't load image \"%s\"\n", fname);
             } else {
                 newtex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888,
-                                           SDL_TEXTUREACCESS_STATIC, w, h);
+                                           SDL_TEXTUREACCESS_STATIC, *_w, *_h);
                 if (!newtex) {
                     fprintf(stderr, "WARNING: couldn't create texture for \"%s\"\n", fname);
                 } else {
-                    SDL_UpdateTexture(newtex, NULL, img, w * 4);
+                    SDL_UpdateTexture(newtex, NULL, img, *_w * 4);
                     SDL_SetTextureBlendMode(newtex, SDL_BLENDMODE_BLEND);
                 }
                 stbi_image_free(img);
             }
         }
     }
+    return newtex;
+}
 
+
+static void set_new_image(const char *fname)
+{
+    int w = 0;
+    int h = 0;
+
+    printf("Setting new image \"%s\"\n", fname);
+
+    SDL_Texture *newtex = load_image(fname, &w, &h);
     const Uint32 startms = SDL_GetTicks();
     const Uint32 timeout = startms + fadems;
     for (Uint32 now = startms; !SDL_TICKS_PASSED(now, timeout); now = SDL_GetTicks()) {
@@ -241,7 +251,20 @@ static void slide_in_keyboard(void)
         return;  // no keyboard for you.
     }
 
-    printf("Sliding in keyboard!\n");
+    //printf("Sliding in keyboard!\n");
+
+    // Send keyup events for anything that fingers are still touching.
+    #if USE_LIBEVDEV
+    if (button_finger_down && uidev_mouse) {
+        libevdev_uinput_write_event(uidev_mouse, EV_KEY, BTN_LEFT, 0);
+        libevdev_uinput_write_event(uidev_mouse, EV_SYN, SYN_REPORT, 0);
+    }
+    #endif
+    motion_finger_down = SDL_FALSE;
+    motion_finger = 0;
+    button_finger_down = SDL_FALSE;
+    button_finger = 0;
+
     keyboard_slide_cooldown = SDL_TRUE;
     handle_fingerup = handle_fingerup_keyboard;
     handle_fingerdown = handle_fingerdown_keyboard;
@@ -263,17 +286,19 @@ static void slide_in_keyboard(void)
 
 static void slide_out_keyboard(void)
 {
-    printf("Sliding out keyboard!\n");
+    //printf("Sliding out keyboard!\n");
 
     // Send keyup events for anything that fingers are still touching.
     for (int i = 0; i < SDL_arraysize(pressed_keys); i++) {
         if (pressed_keys[i].pressed) {
-            printf("Released virtual keyboard key %u\n", keyinfo[pressed_keys[i].keyindex].scancode);
+            //printf("Released virtual keyboard key %u\n", keyinfo[pressed_keys[i].keyindex].scancode);
             pressed_keys[i].pressed = SDL_FALSE;
 
             #if USE_LIBEVDEV
-            libevdev_uinput_write_event(uidev_keyboard, EV_KEY, keyinfo[keyindex].scancode, 0);
-            libevdev_uinput_write_event(uidev_keyboard, EV_SYN, SYN_REPORT, 0);
+            if (uidev_keyboard) {
+                libevdev_uinput_write_event(uidev_keyboard, EV_KEY, keyinfo[pressed_keys[i].keyindex].scancode, 0);
+                libevdev_uinput_write_event(uidev_keyboard, EV_SYN, SYN_REPORT, 0);
+            }
             #endif
         }
     }
@@ -301,14 +326,14 @@ static void slide_out_keyboard(void)
 
 static void handle_fingerdown_mouse(const SDL_TouchFingerEvent *e)
 {
-    if (fingers_down == 8) {
+    if (fingers_down == 4) {
         slide_in_keyboard();
     } else if (!motion_finger_down) {
-        //printf("This is the motion finger.\n");
+        //printf("FINGERDOWN: This is the motion finger.\n");
         motion_finger = e->fingerId;
         motion_finger_down = SDL_TRUE;
     } else if (!button_finger_down) {
-        //printf("This is the button finger.\n");
+        //printf("FINGERDOWN: This is the button finger.\n");
         button_finger = e->fingerId;
         button_finger_down = SDL_TRUE;
         #if USE_LIBEVDEV
@@ -323,11 +348,11 @@ static void handle_fingerdown_mouse(const SDL_TouchFingerEvent *e)
 static void handle_fingerup_mouse(const SDL_TouchFingerEvent *e)
 {
     if (motion_finger_down && (e->fingerId == motion_finger)) {
-        //printf("This is the motion finger.\n");
+        //printf("FINGERUP: This is the motion finger.\n");
         motion_finger_down = SDL_FALSE;
         motion_finger = 0;
     } else if (button_finger_down && (e->fingerId == button_finger)) {
-        //printf("This is the button finger.\n");
+        //printf("FINGERUP: This is the button finger.\n");
         button_finger_down = SDL_FALSE;
         button_finger = 0;
         #if USE_LIBEVDEV
@@ -369,7 +394,7 @@ static void handle_fingermotion_mouse(const SDL_TouchFingerEvent *e)
 
 static void handle_fingerdown_keyboard(const SDL_TouchFingerEvent *e)
 {
-    if (fingers_down == 8) {
+    if (fingers_down == 4) {
         slide_out_keyboard();
     } else {
         const int x = (int) (((float) screenw) * e->x);
@@ -406,11 +431,13 @@ static void handle_fingerdown_keyboard(const SDL_TouchFingerEvent *e)
         pressed_keys[pressedindex].finger = e->fingerId;
         pressed_keys[pressedindex].keyindex = keyindex;
 
-        printf("Pressed virtual keyboard key %u\n", keyinfo[keyindex].scancode);
+        //printf("Pressed virtual keyboard key %u\n", keyinfo[keyindex].scancode);
 
         #if USE_LIBEVDEV
-        libevdev_uinput_write_event(uidev_keyboard, EV_KEY, keyinfo[keyindex].scancode, 1);
-        libevdev_uinput_write_event(uidev_keyboard, EV_SYN, SYN_REPORT, 0);
+        if (uidev_keyboard) {
+            libevdev_uinput_write_event(uidev_keyboard, EV_KEY, keyinfo[keyindex].scancode, 1);
+            libevdev_uinput_write_event(uidev_keyboard, EV_SYN, SYN_REPORT, 0);
+        }
         #endif
 
         redraw_window();
@@ -421,12 +448,14 @@ static void handle_fingerup_keyboard(const SDL_TouchFingerEvent *e)
 {
     for (int i = 0; i < SDL_arraysize(pressed_keys); i++) {
         if (pressed_keys[i].pressed && (pressed_keys[i].finger == e->fingerId)) {
-            printf("Released virtual keyboard key %u\n", keyinfo[pressed_keys[i].keyindex].scancode);
+            //printf("Released virtual keyboard key %u\n", keyinfo[pressed_keys[i].keyindex].scancode);
             pressed_keys[i].pressed = SDL_FALSE;
 
             #if USE_LIBEVDEV
-            libevdev_uinput_write_event(uidev_keyboard, EV_KEY, keyinfo[keyindex].scancode, 0);
-            libevdev_uinput_write_event(uidev_keyboard, EV_SYN, SYN_REPORT, 0);
+            if (uidev_keyboard) {
+                libevdev_uinput_write_event(uidev_keyboard, EV_KEY, keyinfo[pressed_keys[i].keyindex].scancode, 0);
+                libevdev_uinput_write_event(uidev_keyboard, EV_SYN, SYN_REPORT, 0);
+            }
             #endif
 
             redraw_window();
@@ -443,13 +472,13 @@ static void handle_fingermotion_keyboard(const SDL_TouchFingerEvent *e)
 static void handle_redraw_keyboard(void)
 {
     const int w = screenw;
-    const int h = keyboardh;
+    const int h = screenh;
     const int y = screenh - ((int) (((float) h) * keyboard_slide_percent));
-    const SDL_Rect dst = { 0, y, w, h };
+    const SDL_Rect dst = { 0, y, w, keyboardh };
     //SDL_SetTextureAlphaMod(keyboard_texture, 255.0f * keyboard_slide_percent);
     SDL_RenderCopy(renderer, keyboard_texture, NULL, &dst);
 
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 127);
+    SDL_SetRenderDrawColor(renderer, 175, 0, 0, 90);
     for (int i = 0; i < SDL_arraysize(pressed_keys); i++) {
         if (pressed_keys[i].pressed) {
             SDL_RenderFillRect(renderer, &keyinfo[pressed_keys[i].keyindex].rect);
@@ -527,7 +556,7 @@ static SDL_bool iterate(void)
                      (dbus_message_iter_get_arg_type(&args) == DBUS_TYPE_STRING) ) {
                      char *param = NULL;
                      dbus_message_iter_get_basic(&args, &param);
-                     printf("Got D-Bus request to show image \"%s\"\n", param);
+                     //printf("Got D-Bus request to show image \"%s\"\n", param);
                      SDL_free(newimage);
                      newimage = SDL_strdup(param);
                 }
@@ -568,6 +597,16 @@ static void deinitialize(void)
         libevdev_free(evdev_mouse);
         evdev_mouse = NULL;
     }
+
+    if (uidev_keyboard) {
+        libevdev_uinput_destroy(uidev_keyboard);
+        uidev_keyboard = NULL;
+    }
+
+    if (evdev_keyboard) {
+        libevdev_free(evdev_keyboard);
+        evdev_keyboard = NULL;
+    }
     #endif
 
     if (texture) {
@@ -595,68 +634,98 @@ static void deinitialize(void)
 
 static SDL_Texture *build_keyboard_texture(void)
 {
-    const int keyboardw = screenw;
-    keyboardh = screenh - (screenh / 4);
-    SDL_Texture *tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STATIC, keyboardw, keyboardh);
+    SDL_Texture *tex = load_image("/home/pi/projects/arcade1up-lcd-marquee/keyboard-en.png", &keyboardw, &keyboardh);  // !!! FIXME: hardcoded
     if (!tex) {
         return NULL;
     }
 
+    int posx = 4;
+    int posy = 4;
+    int keyw = 52;
+    int keyh = 52;
     virtkey *k = keyinfo;
-    int x = 0;
-    int y = 0;
-    const int w = keyboardw / 14;
-    const int h = keyboardh / 4;
-    #define ADDKEY(sc) { \
+    #define ADDKEY(sc, x, y, w, h) { \
         SDL_assert((k - keyinfo) < SDL_arraysize(keyinfo)); \
         const SDL_Rect r = { x, y, w, h }; \
         SDL_memcpy(&k->rect, &r, sizeof (SDL_Rect)); \
         k->scancode = KEY_##sc; \
         k++; \
-        x += w; \
+        posx += (w + 1); \
     }
 
-    ADDKEY(1);
-    ADDKEY(2);
-    ADDKEY(3);
-    ADDKEY(4);
-    ADDKEY(5);
-    ADDKEY(6);
-    ADDKEY(7);
-    ADDKEY(8);
-    ADDKEY(9);
-    ADDKEY(0);
-    y += h;
-    ADDKEY(Q);
-    ADDKEY(W);
-    ADDKEY(E);
-    ADDKEY(R);
-    ADDKEY(T);
-    ADDKEY(Y);
-    ADDKEY(U);
-    ADDKEY(I);
-    ADDKEY(O);
-    ADDKEY(P);
-    y += h;
-    ADDKEY(A);
-    ADDKEY(S);
-    ADDKEY(D);
-    ADDKEY(F);
-    ADDKEY(G);
-    ADDKEY(H);
-    ADDKEY(J);
-    ADDKEY(K);
-    ADDKEY(L);
-    ADDKEY();
-    y += h;
-    ADDKEY(Z);
-    ADDKEY(X);
-    ADDKEY(C);
-    ADDKEY(V);
-    ADDKEY(B);
-    ADDKEY(N);
-    ADDKEY(M);
-    y += h;
+    // !!! FIXME: hardcoded mess
+    ADDKEY(GRAVE, posx, posy, keyw, keyh);
+    ADDKEY(1, posx, posy, keyw, keyh);
+    ADDKEY(2, posx, posy, keyw, keyh);
+    ADDKEY(3, posx, posy, keyw, keyh);
+    ADDKEY(4, posx, posy, keyw, keyh);
+    ADDKEY(5, posx, posy, keyw, keyh);
+    ADDKEY(6, posx, posy, keyw, keyh);
+    ADDKEY(7, posx, posy, keyw, keyh);
+    ADDKEY(8, posx, posy, keyw, keyh);
+    ADDKEY(9, posx, posy, keyw, keyh);
+    ADDKEY(0, posx, posy, keyw, keyh);
+    ADDKEY(MINUS, posx, posy, keyw, keyh);
+    ADDKEY(EQUAL, posx, posy, keyw, keyh);
+    ADDKEY(BACKSPACE, posx, posy, 105, keyh);
+
+    posx = 4;
+    posy += (keyh + 1);
+    ADDKEY(TAB, posx, posy, 78, keyh);
+    ADDKEY(Q, posx, posy, keyw, keyh);
+    ADDKEY(W, posx, posy, keyw, keyh);
+    ADDKEY(E, posx, posy, keyw, keyh);
+    ADDKEY(R, posx, posy, keyw, keyh);
+    ADDKEY(T, posx, posy, keyw, keyh);
+    ADDKEY(Y, posx, posy, keyw, keyh);
+    ADDKEY(U, posx, posy, keyw, keyh);
+    ADDKEY(I, posx, posy, keyw, keyh);
+    ADDKEY(O, posx, posy, keyw, keyh);
+    ADDKEY(P, posx, posy, keyw, keyh);
+    ADDKEY(LEFTBRACE, posx, posy, keyw, keyh);
+    ADDKEY(RIGHTBRACE, posx, posy, keyw, keyh);
+    ADDKEY(BACKSLASH, posx, posy, 78, keyh);
+
+    posx = 4;
+    posy += (keyh + 1);
+    ADDKEY(CAPSLOCK, posx, posy, 91, keyh);
+    ADDKEY(A, posx, posy, keyw, keyh);
+    ADDKEY(S, posx, posy, keyw, keyh);
+    ADDKEY(D, posx, posy, keyw, keyh);
+    ADDKEY(F, posx, posy, keyw, keyh);
+    ADDKEY(G, posx, posy, keyw, keyh);
+    ADDKEY(H, posx, posy, keyw, keyh);
+    ADDKEY(J, posx, posy, keyw, keyh);
+    ADDKEY(K, posx, posy, keyw, keyh);
+    ADDKEY(L, posx, posy, keyw, keyh);
+    ADDKEY(SEMICOLON, posx, posy, keyw, keyh);
+    ADDKEY(APOSTROPHE, posx, posy, keyw, keyh);
+    ADDKEY(ENTER, posx, posy, 118, keyh);
+
+    posx = 4;
+    posy += (keyh + 1);
+    ADDKEY(LEFTSHIFT, posx, posy, 118, keyh);
+    ADDKEY(Z, posx, posy, keyw, keyh);
+    ADDKEY(X, posx, posy, keyw, keyh);
+    ADDKEY(C, posx, posy, keyw, keyh);
+    ADDKEY(V, posx, posy, keyw, keyh);
+    ADDKEY(B, posx, posy, keyw, keyh);
+    ADDKEY(N, posx, posy, keyw, keyh);
+    ADDKEY(M, posx, posy, keyw, keyh);
+    ADDKEY(COMMA, posx, posy, keyw, keyh);
+    ADDKEY(DOT, posx, posy, keyw, keyh);
+    ADDKEY(SLASH, posx, posy, keyw, keyh);
+    ADDKEY(RIGHTSHIFT, posx, posy, 145, keyh);
+
+    posx = 4;
+    posy += (keyh + 1);
+    ADDKEY(LEFTCTRL, posx, posy, 78, keyh);
+    ADDKEY(LEFTMETA, posx, posy, 65, keyh);
+    ADDKEY(LEFTALT, posx, posy, 65, keyh);
+    ADDKEY(SPACE, posx, posy, 304, keyh);
+    ADDKEY(RIGHTALT, posx, posy, 65, keyh);
+    ADDKEY(RIGHTMETA, posx, posy, 65, keyh);
+    ADDKEY(RIGHTCTRL, posx, posy, 78, keyh);
 
     #undef ADDKEY
 
@@ -777,6 +846,7 @@ static SDL_bool initialize(const int argc, char **argv)
     printf("SDL renderer target: %s\n", info.name);
     #endif
 
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
     SDL_RenderPresent(renderer);
@@ -829,6 +899,8 @@ static SDL_bool initialize(const int argc, char **argv)
     #endif
 
     #if USE_LIBEVDEV
+    int rc;
+
     evdev_mouse = libevdev_new();
     libevdev_set_name(evdev_mouse, "Icculus's LCD Marquee Mouse");
     libevdev_enable_event_type(evdev_mouse, EV_REL);
@@ -838,7 +910,7 @@ static SDL_bool initialize(const int argc, char **argv)
     libevdev_enable_event_code(evdev_mouse, EV_KEY, BTN_LEFT, NULL);
     //libevdev_enable_event_code(evdev_mouse, EV_KEY, BTN_MIDDLE, NULL);
     //libevdev_enable_event_code(evdev_mouse, EV_KEY, BTN_RIGHT, NULL);
-    const int rc = libevdev_uinput_create_from_device(evdev_mouse,
+    rc = libevdev_uinput_create_from_device(evdev_mouse,
                                          LIBEVDEV_UINPUT_OPEN_MANAGED,
                                          &uidev_mouse);
     if (rc != 0) {
@@ -854,7 +926,7 @@ static SDL_bool initialize(const int argc, char **argv)
     for (unsigned int i = KEY_ESC; i < KEY_WIMAX; i++) {
         libevdev_enable_event_code(evdev_keyboard, EV_KEY, i, NULL);
     }
-    const int rc = libevdev_uinput_create_from_device(evdev_keyboard,
+    rc = libevdev_uinput_create_from_device(evdev_keyboard,
                                          LIBEVDEV_UINPUT_OPEN_MANAGED,
                                          &uidev_keyboard);
     if (rc != 0) {
