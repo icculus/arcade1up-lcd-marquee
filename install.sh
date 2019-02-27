@@ -41,6 +41,7 @@ fi
 
 cat LICENSE.txt
 
+echo "building latest version. This takes 15-20 seconds on a Raspberry Pi 3+..."
 ./build.sh || exit 1
 
 chown -R pi /home/pi/arcade1up-lcd-marquee
