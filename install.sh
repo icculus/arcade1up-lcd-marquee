@@ -32,11 +32,14 @@ cd /home/pi
 
 if [ ! -d arcade1up-lcd-marquee ]; then
     hg clone https://hg.icculus.org/icculus/arcade1up-lcd-marquee || exit 1
+    cd arcade1up-lcd-marquee
 else
     cd arcade1up-lcd-marquee
     hg pull
     hg update
 fi
+
+cat LICENSE.txt
 
 ./build.sh || exit 1
 
