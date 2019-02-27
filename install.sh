@@ -17,15 +17,19 @@ if [ ! -d /home/pi/arcade1up-lcd-marquee ]; then
 fi
 
 if [ -f /opt/retropie/configs/all/runcommand-onstart.sh ]; then
-    echo "ERROR: /opt/retropie/configs/all/runcommand-onstart.sh already exist. Can't go on." 1>&2
-    echo "ERROR: Move this file out of the way and maybe merge your own script later." 1>&2
-    exit 1
+    if [ `readlink /opt/retropie/configs/all/runcommand-onstart.sh` != "/home/pi/arcade1up-lcd-marquee/runcommand-onstart.sh" ]; then
+        echo "ERROR: /opt/retropie/configs/all/runcommand-onstart.sh already exist. Can't go on." 1>&2
+        echo "ERROR: Move this file out of the way and maybe merge your own script later." 1>&2
+        exit 1
+    fi
 fi
 
 if [ -f /opt/retropie/configs/all/runcommand-onend.sh ]; then
-    echo "ERROR: /opt/retropie/configs/all/runcommand-onend.sh already exist. Can't go on." 1>&2
-    echo "ERROR: Move this file out of the way and maybe merge your own script later." 1>&2
-    exit 1
+    if [ `readlink /opt/retropie/configs/all/runcommand-onend.sh` != "/home/pi/arcade1up-lcd-marquee/runcommand-onend.sh" ]; then
+        echo "ERROR: /opt/retropie/configs/all/runcommand-onend.sh already exist. Can't go on." 1>&2
+        echo "ERROR: Move this file out of the way and maybe merge your own script later." 1>&2
+        exit 1
+    fi
 fi
 
 cd /home/pi/arcade1up-lcd-marquee
