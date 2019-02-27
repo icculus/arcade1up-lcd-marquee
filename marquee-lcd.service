@@ -4,7 +4,7 @@ After=local-fs.target
 
 [Service]
 Type=dbus
-ExecStart=/home/pi/marquee-displaydaemon --fadems 1000 --startimage /home/pi/stickers-neo-geo-system.jpg
+ExecStart=/home/pi/arcade1up-lcd-marquee/marquee-displaydaemon --fadems 1000 --startimage /home/pi/arcade1up-lcd-marquee/default.jpg
 TimeoutStopSec=3
 KillSignal=SIGINT
 BusName=org.icculus.Arcade1UpMarquee

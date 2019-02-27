@@ -6,6 +6,6 @@
 #
 #  This file written by Ryan C. Gordon.
 
-exec /home/pi/projects/arcade1up-lcd-marquee/marquee-showimage /home/pi/stickers-neo-geo-system.jpg
+exec /home/pi/arcade1up-lcd-marquee/marquee-showimage /home/pi/arcade1up-lcd-marquee/default.jpg
 
 

@@ -14,7 +14,7 @@ my $debug = 0;
 
 sub showimage {
     my $img = shift;
-    my $cmd = "/home/pi/projects/arcade1up-lcd-marquee/marquee-showimage '$img'";
+    my $cmd = "/home/pi/arcade1up-lcd-marquee/marquee-showimage '$img'";
     print("calling system(\"$cmd\")...\n") if $debug;
     system($cmd);
 }

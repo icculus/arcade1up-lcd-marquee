@@ -6,7 +6,7 @@
 #
 #  This file written by Ryan C. Gordon.
 
-exec "`dirname $0`"/runcommand-onstart-marquee-lcd.pl "$@" &
+exec /home/pi/arcade1up-lcd-marquee/runcommand-onstart-marquee-lcd.pl "$@" &
 
 
 

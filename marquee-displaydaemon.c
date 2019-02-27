@@ -634,7 +634,7 @@ static void deinitialize(void)
 
 static SDL_Texture *build_keyboard_texture(void)
 {
-    SDL_Texture *tex = load_image("/home/pi/projects/arcade1up-lcd-marquee/keyboard-en.png", &keyboardw, &keyboardh);  // !!! FIXME: hardcoded
+    SDL_Texture *tex = load_image("/home/pi/arcade1up-lcd-marquee/keyboard-en.png", &keyboardw, &keyboardh);  // !!! FIXME: hardcoded
     if (!tex) {
         return NULL;
     }
