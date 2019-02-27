@@ -27,7 +27,7 @@ echo " to Ryan <icculus@icculus.org>"
 echo
 echo "Press enter to start, CTRL-C now to abort."
 
-read $X
+read waitforinput </dev/tty
 
 cd /home/pi
 
