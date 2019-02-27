@@ -16,6 +16,15 @@ if [ ! -d /home/pi ]; then
     exit 1
 fi
 
+echo "We're going to download, build and install what you need for the"
+echo " LCD marquee. This doesn't take long. We'll be installing Mercurial if"
+echo " necessary, and putting a systemd service in place to manage the LCD"
+echo " control process."
+echo
+echo "Press enter to start, CTRL-C now to abort."
+
+read $X
+
 cd /home/pi
 
 if [ ! -d arcade1up-lcd-marquee ]; then
