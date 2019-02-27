@@ -29,6 +29,8 @@ echo "Press enter to start, CTRL-C now to abort."
 
 read waitforinput </dev/tty
 
+apt-get install mercurial
+
 cd /home/pi
 
 if [ ! -d arcade1up-lcd-marquee ]; then
