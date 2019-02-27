@@ -42,6 +42,7 @@ if [ ! -d arcade1up-lcd-marquee ]; then
     cd arcade1up-lcd-marquee
 else
     cd arcade1up-lcd-marquee
+    chown -R root ../arcade1up-lcd-marquee  # stop "trust" problems
     hg pull
     hg update
 fi
