@@ -16,6 +16,9 @@ if [ ! -d /home/pi ]; then
     exit 1
 fi
 
+echo
+echo
+echo
 echo "We're going to download, build and install what you need for the"
 echo " LCD marquee. This doesn't take long. We'll be installing Mercurial if"
 echo " necessary, and putting a systemd service in place to manage the LCD"
@@ -26,6 +29,7 @@ echo " RetroPie, and probably generic Raspbian. YMMV. You can report problems"
 echo " to Ryan <icculus@icculus.org>"
 echo
 echo "Press enter to start, CTRL-C now to abort."
+echo
 
 read waitforinput </dev/tty
 
