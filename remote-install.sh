@@ -40,5 +40,7 @@ else
     hg update
 fi
 
+chown -R pi ../arcade1up-lcd-marquee
+
 exec ./install.sh
 
