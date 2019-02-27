@@ -578,6 +578,16 @@ static SDL_bool iterate(void)
     return SDL_TRUE;
 }
 
+static void set_backlight(const SDL_bool value)
+{
+    // we don't care if any of this fails.
+    FILE *io = fopen("/sys/class/backlight/rpi_backlight/bl_power", "w");
+    if (io) {
+        fputs(value ? "0" : "1", io);  // yes, this looks backwards.
+        fclose(io);
+    }
+}
+
 static void deinitialize(void)
 {
     #if USE_DBUS
@@ -630,6 +640,8 @@ static void deinitialize(void)
     }
 
     SDL_Quit();
+
+    set_backlight(SDL_FALSE);
 }
 
 static SDL_Texture *build_keyboard_texture(void)
@@ -851,6 +863,8 @@ static SDL_bool initialize(const int argc, char **argv)
     SDL_RenderClear(renderer);
     SDL_RenderPresent(renderer);
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+
+    set_backlight(SDL_TRUE);
 
     /* on some systems, your window doesn't show up until the event queue gets pumped. */
     SDL_Event e;
