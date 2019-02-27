@@ -11,8 +11,8 @@ if [ `id -u` != "0" ]; then
     exit 1
 fi
 
-if [ ! -d /home/pi ]; then
-    echo "ERROR: This script expects you to have a writable /home/pi directory." 1>&2
+if [ ! -d /home/pi/arcade1up-lcd-marquee ]; then
+    echo "ERROR: This script expects you to have a writable /home/pi/arcade1up-lcd-marquee directory." 1>&2
     exit 1
 fi
 
@@ -28,16 +28,10 @@ if [ -f /opt/retropie/configs/all/runcommand-onend.sh ]; then
     exit 1
 fi
 
-cd /home/pi
+cd /home/pi/arcade1up-lcd-marquee
 
-if [ ! -d arcade1up-lcd-marquee ]; then
-    hg clone https://hg.icculus.org/icculus/arcade1up-lcd-marquee || exit 1
-    cd arcade1up-lcd-marquee
-else
-    cd arcade1up-lcd-marquee
-    hg pull
-    hg update
-fi
+echo "Icculus's LCD Marquee software installer!"
+echo
 
 cat LICENSE.txt
 
