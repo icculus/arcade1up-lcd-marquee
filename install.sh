@@ -51,6 +51,16 @@ systemctl restart dbus.service
 systemctl enable marquee-lcd
 systemctl start marquee-lcd
 
+echo
 echo "Should be good to go now! (I hope.)"
+echo
+echo "btw, I have a Patreon that pays for fun things like this."
+echo " Throw in a buck if you dig this sort of thing:"
+echo
+echo "  https://patreon.com/icculus"
+echo
+echo "Thanks!"
+echo "--ryan."
+echo
 
 # end of install.sh ...
