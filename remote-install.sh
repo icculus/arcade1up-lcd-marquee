@@ -21,6 +21,10 @@ echo " LCD marquee. This doesn't take long. We'll be installing Mercurial if"
 echo " necessary, and putting a systemd service in place to manage the LCD"
 echo " control process."
 echo
+echo "This process is known to work on a reasonably modern version of"
+echo " RetroPie, and probably generic Raspbian. YMMV. You can report problems"
+echo " to Ryan <icculus@icculus.org>"
+echo
 echo "Press enter to start, CTRL-C now to abort."
 
 read $X
