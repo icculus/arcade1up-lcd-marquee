@@ -34,30 +34,39 @@ fi
 
 cd /home/pi/arcade1up-lcd-marquee
 
-apt -y install libdbus-1-dev libevdev-dev libxml-libxml-perl </dev/null
-
-
+echo
+echo
 echo "Icculus's LCD Marquee software installer!"
 echo
 
 cat LICENSE.txt
 
-echo "building latest version. This takes 15-20 seconds on a Raspberry Pi 3+..."
-./build.sh || exit 1
+echo
+echo
 
+echo "Installing packages we need for the LCD and its tools..."
+apt -y install build-essential libsdl2-dev libdbus-1-dev libevdev-dev libxml-libxml-perl </dev/null
+
+echo "building latest version. This takes 15-30 seconds on a Raspberry Pi 3..."
+./build.sh || exit 1
 chown -R pi /home/pi/arcade1up-lcd-marquee
 
+echo "Installing onstart/onend scripts..."
 ln -sf /home/pi/arcade1up-lcd-marquee/runcommand-onend.sh /opt/retropie/configs/all/runcommand-onend.sh
 ln -sf /home/pi/arcade1up-lcd-marquee/runcommand-onstart.sh /opt/retropie/configs/all/runcommand-onstart.sh
 ln -sf /home/pi/arcade1up-lcd-marquee/runcommand-onstart-marquee-lcd.pl /opt/retropie/configs/all/runcommand-onstart-marquee-lcd.pl
-ln -sf /home/pi/arcade1up-lcd-marquee/marquee-lcd-dbus.conf /etc/dbus-1/system.d/marquee-lcd-dbus.conf
-ln -sf /home/pi/arcade1up-lcd-marquee/marquee-lcd.service /lib/systemd/system/marquee-lcd.service
 
+echo "Installing D-Bus config..."
+ln -sf /home/pi/arcade1up-lcd-marquee/marquee-lcd-dbus.conf /etc/dbus-1/system.d/marquee-lcd-dbus.conf
+
+echo "Installing systemd service..."
+ln -sf /home/pi/arcade1up-lcd-marquee/marquee-lcd.service /lib/systemd/system/marquee-lcd.service
 systemctl daemon-reload
 systemctl restart dbus.service
 systemctl enable marquee-lcd
 systemctl start marquee-lcd
 
+echo "Adding LCD rotation and default display settings to /boot/config.txt ..."
 echo >> /boot/config.txt
 echo "# Don't use the DSI-connnected touchscreen display as the primary output." >> /boot/config.txt
 echo "display_default_lcd=0" >> /boot/config.txt
@@ -66,12 +75,14 @@ echo "# rotate image to be right-side-up (we have the screen installed upside-do
 echo "lcd_rotate=2" >> /boot/config.txt
 echo >> /boot/config.txt
 
+echo "Flushing to filesystem..."
 sync
 
 echo
-echo "Should be good to go now! (I hope.)"
+echo "You should be good to go now! (I hope.)"
 echo
-echo "If your touchscreen is the primary display (and/or upside down),"
+echo "If your touchscreen is the primary display and the HDMI monitor is"
+echo " showing a NEO-GEO SYSTEM logo, or the touchscreen is upside down,"
 echo " reboot now to fix it. Just run 'sudo reboot' or cycle the power."
 echo
 echo "btw, I have a Patreon that pays for fun things like this."
