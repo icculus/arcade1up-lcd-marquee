@@ -55,8 +55,21 @@ systemctl restart dbus.service
 systemctl enable marquee-lcd
 systemctl start marquee-lcd
 
+echo >> /boot/config.txt
+echo "# Don't use the DSI-connnected touchscreen display as the primary output." >> /boot/config.txt
+echo "display_default_lcd=0" >> /boot/config.txt
+echo >> /boot/config.txt
+echo "# rotate image to be right-side-up (we have the screen installed upside-down)." >> /boot/config.txt
+echo "lcd_rotate=2" >> /boot/config.txt
+echo >> /boot/config.txt
+
+sync
+
 echo
 echo "Should be good to go now! (I hope.)"
+echo
+echo "If your touchscreen is the primary display (and/or upside down),"
+echo " reboot now to fix it. Just run 'sudo reboot' or cycle the power."
 echo
 echo "btw, I have a Patreon that pays for fun things like this."
 echo " Throw in a buck if you dig this sort of thing:"
