@@ -34,7 +34,7 @@ fi
 
 cd /home/pi/arcade1up-lcd-marquee
 
-( apt install libdbus-1-dev libevdev-dev )
+apt install libdbus-1-dev libevdev-dev libxml-libxml-perl
 
 echo "Icculus's LCD Marquee software installer!"
 echo
