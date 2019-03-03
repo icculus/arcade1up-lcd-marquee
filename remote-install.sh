@@ -20,8 +20,8 @@ echo
 echo
 echo
 echo "We're going to download, build and install what you need for the"
-echo " LCD marquee. This doesn't take long. We'll be installing Mercurial if"
-echo " necessary, and putting a systemd service in place to manage the LCD"
+echo " LCD marquee. This doesn't take long. We'll be installing a few things"
+echo " if necessary, and putting a systemd service in place to manage the LCD"
 echo " control process."
 echo
 echo "This process is known to work on a reasonably modern version of"
@@ -33,7 +33,7 @@ echo
 
 read waitforinput </dev/tty
 
-apt-get install mercurial
+( apt install mercurial )
 
 cd /home/pi
 
