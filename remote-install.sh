@@ -33,7 +33,7 @@ echo
 
 read waitforinput </dev/tty
 
-( apt install mercurial )
+/bin/bash -c "apt install mercurial"
 
 cd /home/pi
 
